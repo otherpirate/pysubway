@@ -1,94 +1,72 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
+
 import time
+import utils
+from subway_exceptions import RedirectException
 
-VOTE = 9
-COMPLIMENT = True
-COMPLIMENT_MESSAGE = "OMG"
-WARNING = False
-WARNING_MESSAGE = "YYY"
-FAST_FOOD_IN_MONTH = 10
-SUBWAY_IN_MONTH = 5
-EMAIL = "your@email.com"
-RECEIVE_NEWSLETTER = False
-CONTACT_ME = False
-
-def set_drop_down(driver, element_id, status):
-    dd_options = driver.find_element_by_id(element_id).find_elements_by_tag_name('option')
-    option = 2 if status else 1
-    dd_options[len(dd_options)-option].click()
-
-def set_vote(driver, element_name, vote):
-    driver.find_elements_by_name(element_name)[vote].click()
-
-def main(driver, store_id):
-    elem = driver.find_element_by_id("txtSearch")
-    elem.send_keys(store_id)
-    elem.send_keys(Keys.RETURN)
+def access_store(driver, store_id):
+    utils.input(driver, "txtSearch", store_id)
+    utils.button_click(driver, "SubmitText")
     time.sleep(1)
 
-    error_msg = driver.find_element_by_id("popText")
-    if error_msg.is_displayed():
-        if '(URL)' in error_msg.text:
-            print "Redirecting..."
-            driver.find_elements_by_class_name("TS_btn1")[1].click()
-            main(driver, store_id)
-        else:
-            print "Subway error message:"
-            print error_msg.text
-        return
+    try:
+        utils.deal_with_error_message(driver)
+        utils.button_click(driver, "agree")
+        time.sleep(5)
+        return True
+    except RedirectException:
+        return access_store(driver, store_id)
 
-    driver.find_element_by_id("agree").click()
-    time.sleep(5)
+def get_cookie(driver, store_id, config):
 
-    driver.find_element_by_id("answ5195").send_keys("12/03/2016")
-    driver.find_element_by_id("answHour5195").send_keys("12")
-    driver.find_element_by_id("answMinute5195").send_keys("45")
+    if access_store(driver, store_id):
+        date = utils.get_last_visit_date(config["week_frequency"])
+        formatted = utils.format_date(date, driver.find_element_by_id("answ5195").get_attribute("placeholder"))
+        utils.input(driver, "answ5195", formatted, False)
 
-    set_vote(driver, "answc5197", VOTE)
-    set_vote(driver, "answ5198", VOTE)
-    set_vote(driver, "answ51990", VOTE)
-    set_vote(driver, "answ51991", VOTE)
-    set_vote(driver, "answ51992", VOTE)
-    set_vote(driver, "answ51993", VOTE)
-    set_vote(driver, "answ51994", VOTE)
-    set_vote(driver, "answ51995", VOTE)
+        utils.input(driver, "answHour5195", config["hour"], False)
+        utils.input(driver, "answMinute5195", config["minute"], False)
 
-    set_drop_down(driver, "answ5220", COMPLIMENT)
-    if COMPLIMENT:
-        driver.find_element_by_id("answ5221").click()
-        driver.find_element_by_id("answ5221").send_keys(COMPLIMENT_MESSAGE)
+        utils.set_vote(driver, "answc5197", config["recommend_to_friend"])
+        utils.set_vote(driver, "answ5198", config["general_experience"])
+        utils.set_vote(driver, "answ51990", config["food_quality"])
+        utils.set_vote(driver, "answ51991", config["food_quality"])
+        utils.set_vote(driver, "answ51992", config["polite_staff"])
+        utils.set_vote(driver, "answ51993", config["cleaning"])
+        utils.set_vote(driver, "answ51994", config["comfort"])
+        utils.set_vote(driver, "answ51995", config["general_experience"])
 
-    set_drop_down(driver, "answ5222", WARNING)
-    if WARNING:
-        driver.find_element_by_id("answ5223").click()
-        driver.find_element_by_id("answ5223").send_keys(WARNING_MESSAGE)
+        utils.set_drop_down(driver, "answ5220", config["compliment"])
+        if config["compliment"]:
+            utils.input(driver, "answ5221", config["compliment_message"])
 
-    driver.find_element_by_id("answ5224").click()
-    driver.find_element_by_id("answ5224").send_keys(FAST_FOOD_IN_MONTH)
+        utils.set_drop_down(driver, "answ5222", config["warning"])
+        if config["warning"]:
+            utils.input(driver, "answ5223", config["warning_message"])
 
-    driver.find_element_by_id("answ5225").click()
-    driver.find_element_by_id("answ5225").send_keys(SUBWAY_IN_MONTH)
+        utils.input(driver, "answ5224", config["fast_food_in_month"])
+        utils.input(driver, "answ5225", config["subway_in_month"])
+        utils.input(driver, "answ5218", config["my_email"])
 
-    driver.find_element_by_id("answ5218").click()
-    driver.find_element_by_id("answ5218").send_keys(EMAIL)
+        utils.set_drop_down(driver, "answ5219", config["receive_newsletter"])
+        utils.set_drop_down(driver, "DdlContact", config["contact_me"])
 
-    set_drop_down(driver, "answ5219", RECEIVE_NEWSLETTER)
-    set_drop_down(driver, "DdlContact", CONTACT_ME)
+        utils.button_click(driver, "btnSubmit")
+        time.sleep(1)
 
-    driver.find_element_by_id("btnSubmit").click()
+        utils.deal_with_error_message(driver)
+        time.sleep(5)
 
-    time.sleep(5)
-    print "Your code:"
-    print driver.find_element_by_id("ctl03_lblTag").text
+        return driver.find_element_by_id("ctl03_lblTag").text
 
 
 if __name__ == "__main__":
-    store_id = raw_input('Store ID: ')
+    store, config = utils.store_selection()
 
     driver = webdriver.Firefox()
     driver.get("https://www.tellsubway.com/")
 
-    main(driver, store_id)
-
-    driver.close()
+    code = get_cookie(driver, store, config)
+    if code:
+        driver.close()
+        print code

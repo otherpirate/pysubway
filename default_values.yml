@@ -1,0 +1,20 @@
+63851:
+    week_frequency: 7
+    hour: 12
+    minute: 45
+    recommend_to_friend: 8
+    general_experience: 9
+    food_quality: 10
+    food_quality: 8
+    polite_staff: 10
+    cleaning: 9
+    comfort: 6
+    compliment: True
+    compliment_message: "Great place, nice food"
+    warning: True
+    warning_message: "Don't cut the onions at closed place"
+    fast_food_in_month: 10
+    subway_in_month: 5
+    my_email: "your@email.com"
+    receive_newsletter: True
+    contact_me: True

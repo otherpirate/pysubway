@@ -1,0 +1,2 @@
+class RedirectException(ValueError):
+    pass
